@@ -1,0 +1,7 @@
+title: goingforstudying
+description: "Deep-dive engineering notes: distributed systems, observability, and bugs that only show up at 3am."
+theme: minima
+author: goingforstudying-ctrl
+plugins:
+  - jekyll-feed
+show_excerpts: true
