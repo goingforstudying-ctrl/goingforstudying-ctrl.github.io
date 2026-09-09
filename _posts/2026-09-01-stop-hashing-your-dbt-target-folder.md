@@ -3,7 +3,7 @@ layout: post
 title: "Stop hashing your dbt target folder"
 ---
 
-A few weeks ago I was digging through DAG parse times on a project whose dbt files live on network-backed storage, and I kept coming back to the same hot spot: on every single parse, Cosmos was hashing the entire dbt project folder to compute its version. Not just the model SQL — the whole tree, including the folders dbt itself generates. I wrote up the fix in [astronomer-cosmos PR #2942](https://github.com/astronomer/astronomer-cosmos/pull/2942), and this post is the story behind it.
+[Cosmos issue #2857](https://github.com/astronomer/astronomer-cosmos/issues/2857) described expensive parsing on a network-backed dbt project. One contributor to that cost was the project-content hash: its directory walk included generated output as well as source files. [PR #2942](https://github.com/astronomer/astronomer-cosmos/pull/2942) reduced that work.
 
 The trigger was [issue #2857](https://github.com/astronomer/astronomer-cosmos/issues/2857), where someone on Airflow 3.0 with KubernetesExecutor reported that every worker pod re-parsed the full dbt manifest for all 36 of their Cosmos DbtTaskGroups before running anything — even for a task that takes three seconds. Their project had 3,238 dbt nodes and 822 models, and every task ran in a fresh pod with a freshly synced copy of the project.
 
@@ -13,13 +13,12 @@ Here's what the hash function did before my change, in essence:
 
 ```python
 for filepath in sorted(filepaths):
-    try:
-        with open(str(filepath), "rb") as fp:
-            buf = fp.read()
-            hasher.update(buf)
+    with open(str(filepath), "rb") as fp:
+        buf = fp.read()
+        hasher.update(buf)
 ```
 
-That's the whole thing: an unpruned `os.walk` over everything, then each file read into memory in one shot. And "everything" on a real project includes `target/` (compiled SQL, the manifest, thousands of generated files), `dbt_packages/` (vendored packages you didn't write), `logs/`, and `.git/`. None of those influence what dbt will actually do — but every one of them gets read, in full, on every parse. On local disk that's merely wasteful; on a shared PVC or Azure File Share, where each per-file read is a round trip, it turns every parse into a small IO storm. In my synthetic benchmark — 822 models with about 3,500 generated files under `target/`, `dbt_packages/`, and `logs/` — one hash call went from 1179ms to 204ms on local disk. The gap on network storage should be a lot wider, since that's where per-file reads dominate.
+That's the whole thing: an unpruned `os.walk` over everything, then each file read into memory in one shot. And "everything" on a real project includes `target/` (compiled SQL, the manifest, thousands of generated files), `dbt_packages/` (vendored packages you didn't write), `logs/`, and `.git/`. Generated logs and build output are usually poor inputs to a source fingerprint. Dependencies in `dbt_packages`, however, can contain macros and models that do change dbt behavior. Excluding that directory is a fingerprinting trade-off, not a claim that dependency contents are irrelevant. On local disk that's merely wasteful; on a shared PVC or Azure File Share, many file reads can add network I/O to each parse. In the PR's reported synthetic benchmark — 822 models with about 3,500 generated files under `target/`, `dbt_packages/`, and `logs/` — one hash call went from 1179ms to 204ms on local disk. Those timings are from the reported local-disk experiment, not a measured speedup for every storage system or an end-to-end DAG parsing benchmark.
 
 The fix has three parts. The core is pruning the generated directories out of the walk entirely:
 
@@ -31,11 +30,11 @@ for root_dir, dirs, files in os.walk(dir_path):
         pruned_dirs += before - len(dirs)
 ```
 
-Mutating `dirs` in place is the standard os.walk idiom for pruning subtrees, and it means we never even stat the files inside them. The default excluded list is `.git, target, dbt_packages, logs`, and it's configurable through a new `[cosmos] project_hash_excluded_dirs` setting, because projects can rename their target or packages paths in `dbt_project.yml` and a hardcoded list would silently stop pruning for them. Setting the option replaces the default list entirely rather than extending it — a little sharp-edged, but it means the behavior is always exactly what you configured.
+Mutating `dirs` in place is the standard os.walk idiom for pruning subtrees, and it means we never even stat the files inside them. The default excluded list is `.git, target, dbt_packages, logs`, and it's configurable through a new `[cosmos] project_hash_excluded_dirs` setting, because projects can rename their target or packages paths in `dbt_project.yml` and a hardcoded list would silently stop pruning for them. A nonempty setting replaces the defaults rather than extending them; matching directory names are excluded wherever they appear. In this implementation, an empty or whitespace-only setting falls back to the defaults. Projects that need dependency contents in the fingerprint should use an explicit list that omits `dbt_packages`, and keep dependency declarations and lockfiles in the tracked inputs.
 
-Second, files are now read in 1MB chunks instead of one shot. That one is defense in depth: if something big survives the pruning — a misplaced `manifest.json`, say — the hash function won't load it into memory whole just to checksum it.
+Second, files are now read in 1 MiB chunks instead of one shot. That one is defense in depth: if something big survives the pruning — a misplaced `manifest.json`, say — the hash function won't load it into memory whole just to checksum it.
 
-Third, and this one's a real bug rather than a performance tweak: the hash covered file contents only. Rename a model file without touching its SQL, and you'd get the same hash. But dbt derives node names from file names, so a content-preserving rename genuinely changes the project — and a stale hash meant the partial-parse cache could keep serving results as if nothing had happened. I mixed each file's relative path into the hash:
+Third, and this one's a real bug rather than a performance tweak: the hash covered file contents only. Rename a model file without touching its SQL, and you'd get the same hash. But dbt derives node names from file names, so a content-preserving rename can change the project. Including the relative path makes that change visible to consumers of this folder fingerprint. I mixed each file's relative path into the hash:
 
 ```python
 for filepath in sorted(filepaths):
@@ -44,6 +43,8 @@ for filepath in sorted(filepaths):
 
 The trade-off I flagged in the PR: hash values change with this, so on upgrade every project looks "modified" once and its caches refresh once. I thought that was acceptable, and it's worth knowing about if you deploy this on a tight schedule.
 
-The part I'm happiest with isn't in the hash function at all. The issue also mentioned that an environment variable silently overriding the cache dir config made debugging miserable, so I added a parse-time log line that shows the resolved cache dir. Small, but it converts a week of confusion into one grep.
+The PR also adds a parse-time log line showing the resolved cache directory. That helps distinguish the configured cache path from a path selected through an environment override.
 
-If you run Cosmos on Airflow 3, on network storage, with a nontrivial dbt project, you're almost certainly paying this tax on every parse — it's invisible unless you profile, because it never fails, it just hums along reading files nobody asked it to read. The fix is merged, and the configuration knob means you can tune the pruning to your project rather than the other way around.
+This is an optimization of folder hashing and cache diagnostics, not a complete fix for every manifest-mode parse or fresh-worker cost in #2857. Review discussion explicitly left a DAG-versioning gap for follow-up: with `LoadMode.DBT_MANIFEST` and the manifest under the default-excluded `target/`, a manifest-only change can leave the folder hash unchanged. If profiling points to the folder walk, tune the excluded names to your project and verify which inputs must invalidate its fingerprint.
+
+Implementation reference: [merged commit](https://github.com/astronomer/astronomer-cosmos/commit/c68a0afde7bb24ded2b8ee4c86545ae23bac845b) (2026-08-04).
