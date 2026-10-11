@@ -1,39 +1,48 @@
 ---
 layout: post
-title: "A cleanup path is still a concurrent caller"
+title: "The socket race started in a destructor"
 permalink: /notes/celery-pubsub-concurrency/
 categories: [concurrency, task-queues]
-excerpt: "Celery's result drainer and result cleanup shared a Redis pub/sub object. Correct unsubscribe behavior still needed a concurrency boundary."
+excerpt: "I followed a Redis socket race out of Celery's polling loop and into result cleanup. The fix needed a lock that could survive callbacks and a fork."
 ---
 
-Celery's result drainer could be reading a Redis socket when result cleanup tried to unsubscribe on the same pub/sub object. Under gevent, the failure appeared as `ConcurrentObjectUseError`: another greenlet was already using the socket.
+The polling loop was the obvious place to look for a Redis socket race. The caller that made this one interesting was an object being destroyed.
 
-My [Celery fix, #10671](https://github.com/celery/celery/pull/10671), merged on September 21, 2026, serializes those accesses. Follow the socket race far enough and you end up in a destructor. That is a less obvious place to look than the polling loop.
+Celery could be waiting for task updates when `AsyncResult.__del__` tried to unsubscribe from the same pub/sub object. Under gevent, that overlap could produce `ConcurrentObjectUseError`: another greenlet was already using the socket.
 
-## How cleanup reaches the socket
+I had to stop treating cleanup as an epilogue. It was doing live I/O against an object the drainer still owned.
 
-The drainer calls `get_message()` to poll for task updates. Separately, `AsyncResult.__del__` can reach `remove_pending_result`, then `cancel_for`, then `pubsub.unsubscribe()`.
+## An unsubscribe still touches the socket
 
-A destructor sounds like the end of a result's life. For the shared socket, it is another caller. Redis-py pub/sub objects are not safe for concurrent use, so a valid unsubscribe can still race with a valid read.
+The two paths meet here:
 
-The patch gives `ResultConsumer` an `RLock` and uses it around the pub/sub lifecycle, subscription changes, polling, and reconnection.
+- The drainer polls for task updates with `get_message()`.
+- Result destruction reaches `remove_pending_result`, then `cancel_for`, then `pubsub.unsubscribe()`.
 
-## Why the lock has to be reentrant
+Each operation makes sense on its own. Redis-py pub/sub objects don't support concurrent access, though, and an unsubscribe doesn't become safe merely because it came from cleanup.
 
-While processing a message, the drainer calls `on_state_change`. If the task is ready, that path can call `cancel_for`. The consumer therefore needs to acquire the same lock again while handling a message under it. A plain mutex would deadlock on that nested call. Reconnection also reaches nested consumer operations.
+The patch gives `ResultConsumer` an `RLock` around pub/sub access, including subscription changes, polling, and reconnection. Covering only the reader would leave the competing caller untouched.
 
-I would be wary of treating this as a mechanical "add a lock" patch. The call graph determines which lock works, and the fork and idle paths determine where to hold it.
+## A plain lock would introduce a deadlock
 
-When no pub/sub object exists, `drain_events` sleeps outside the lock. There is no socket operation to protect during that wait; holding the lock would delay a caller trying to start consumption.
+Following the reader one call deeper explains the choice of lock. While processing a message, the drainer calls `on_state_change`. A ready task can lead from there to `cancel_for`, which needs to unsubscribe.
 
-After a fork, `on_after_fork` creates a fresh lock before cleanup. The inherited lock may have been held by a thread that no longer exists in the child process.
+The consumer is already holding the lock when it reaches that callback. It needs to acquire the same lock again. A plain mutex would block the consumer on its own lock; a reentrant lock allows the nested call. Reconnection also reaches nested consumer operations.
 
-## What serialization costs, and what the tests check
+I find this part easy to miss when reviewing a small diff. The lock declaration takes one line. Choosing it requires reading through the callback.
 
-Polling happens under the lock. A caller trying to subscribe or unsubscribe must wait for that poll to return. The PR discusses a drainer poll timeout of up to one second, which makes this a real tradeoff. A design where the drainer owns the socket and receives subscription commands through a queue would require a broader change.
+There are two other places where lock placement matters. If no pub/sub object exists, `drain_events` sleeps outside the lock so a caller can start consumption during that wait. After a fork, `on_after_fork` creates a fresh lock before cleanup. The inherited one may have been held by a thread that no longer exists in the child.
 
-The merged unit tests use a fake pub/sub object that records overlapping calls. Several threads subscribe and unsubscribe while a drainer polls. Other checks verify lock ownership around the relevant operations, sleep outside the lock, and replacement of the inherited lock after a fork.
+## Making the race visible without waiting for it
 
-The PR also includes Redis integration tests for concurrent result collection and subscription churn. The fake makes an ownership violation observable; Redis exercises the socket behavior behind it.
+The unit tests use a fake pub/sub object that records overlapping calls. A drainer polls while several threads subscribe and unsubscribe. If callers enter the object together, the fake makes that ownership violation observable.
 
-**Source:** [merged PR and tests](https://github.com/celery/celery/pull/10671/files).
+Other checks cover lock ownership on the relevant paths, the idle sleep, and replacement of the inherited lock after a fork. The PR also includes Redis integration tests with concurrent result collection and subscription churn, exercising the socket behavior behind the fake.
+
+## The wait moves somewhere else
+
+Serializing access has a cost: polling holds the lock. A subscription change has to wait for the current poll to return. The PR discusses a drainer poll timeout of up to one second, so this can be noticeable.
+
+Having the drainer own the socket and accept subscription commands through a queue would be a larger redesign. This patch keeps the existing consumer structure and makes callers take turns. When reviewing its cost, I'd look at subscription latency as well as whether the socket error disappeared.
+
+My [Celery PR #10671](https://github.com/celery/celery/pull/10671) merged on September 21, 2026. [Implementation and tests](https://github.com/celery/celery/pull/10671/files).

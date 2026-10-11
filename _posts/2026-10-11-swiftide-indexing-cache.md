@@ -1,46 +1,56 @@
 ---
 layout: post
-title: "Caching a document before indexing it can make a failure permanent"
+title: "The retry skipped the document that failed"
 permalink: /notes/swiftide-indexing-cache/
 categories: [ai-engineering, retrieval, rust]
-excerpt: "Swiftide marked documents cached before embedding and storage finished. Moving the write later also meant tracking failures across chunks and pipeline branches."
+excerpt: "An embedding failure should leave a document available for retry. Swiftide's cache had already decided it was done."
 ---
 
-An indexing job can fail to embed or store a document, then skip that document on every retry. In Swiftide, `filter_cached` used to write the cache entry as soon as a node passed the filter. The work downstream had barely started.
+An embedding request fails. You run the indexing job again, expecting it to pick up the missing document. Instead, the cache says the document has already been handled, and the pipeline skips it.
 
-That was the problem behind my [Swiftide fix, #1164](https://github.com/bosun-ai/swiftide/pull/1164), merged on September 16, 2026. I want an indexing cache to mean that processing finished. An entry that only means "we started" turns a temporary downstream failure into missing data on later runs.
+That was possible in Swiftide because `filter_cached` wrote the cache entry as soon as a node passed the filter. Embedding and storage were still ahead of it. A temporary failure could leave behind a durable instruction to skip the work.
 
-## Waiting for the stream to finish
+"Move the cache write later" sounds like a small fix. I thought so too. The word *later* got less comfortable once I followed a document through chunking and error filtering.
 
-The original sequence was:
+## The cache got there first
+
+The ordering made the failure repeatable:
 
 1. The cache lookup misses.
 2. The filter writes the cache entry and passes the node downstream.
 3. Embedding or storage fails.
 4. The next run finds the cache entry and skips the document.
 
-The patch registers the cache with the pipeline and records which source IDs passed its filter. During `run()`, nodes reaching the end of the stream become candidates for caching. Cache writes happen after the stream finishes without an unhandled error.
+The patch makes passing the filter a record of work to do. It registers the cache with the pipeline and remembers which source IDs passed that cache's filter. During `run()`, nodes that reach the end become completion candidates. The pipeline writes cache entries after the stream finishes without an unhandled error.
 
-I am willing to repeat some work here. If the stream returns an error, execution exits before the marking phase. Even documents that completed earlier can be processed again on the next run. The cache is not a transaction with the storage backend, so downstream writes still need retry behavior appropriate to that backend.
+That fixes the straightforward case. The more interesting case is a pipeline that returns successfully after something inside it failed.
 
-`NodeCache` gains a required `set_by_id` method for the deferred write. Custom cache implementations have to supply it; there is no default that silently pretends to record completion.
+## One stored chunk doesn't finish the document
 
-## A document can become many nodes
+The cache sees a source document. A chunker may turn it into many derived nodes, and storage sees those children. If the children lose their source identity, there's no reliable way to mark the original document complete.
 
-Chunking changes the unit of work. The cache checks a source document, but later stages may see dozens of derived nodes. Marking each chunk under its own ID would leave the original cache lookup unresolved.
+Derived nodes now carry a `parent_id` that preserves the first source ancestor. The Redis, redb, and DuckDB cache integrations use that identity, and completion candidates are deduplicated. Several stored chunks can produce one cache write for their source.
 
-Derived nodes now carry a `parent_id` that preserves the first source ancestor. The Redis, redb, and DuckDB cache integrations use that source identity. Completion candidates are deduplicated, so several successful chunks can lead to one cache write for their document.
+Then comes `filter_errors`. It's useful when you want a job to continue despite individual failures, but it also removes errors from the stream. A clean finish can therefore hide a failed chunk. If one sibling reaches storage, marking the whole document cached would make the missing sibling hard to recover on a retry.
 
-A successful chunk also cannot tell us whether its siblings failed. Pipeline stages record failed source IDs before `filter_errors` can discard those errors. The marking phase excludes those sources, even when other chunks reached storage.
+The pipeline records failed source IDs before those errors can be filtered away. The final marking phase excludes those sources.
 
-One regression makes this visible: the chunker yields a successful child, then an error, and the pipeline uses `filter_errors`. The successful child is stored, but the parent gets no cache write. A clean return from the filtered stream is not enough to call the document complete.
+My favorite regression in this patch is deliberately awkward: the chunker yields one successful child, then an error, and the pipeline uses `filter_errors`. The child gets stored. The parent stays uncached. It checks the case where a successful return would otherwise be misleading.
 
-## Merged branches must keep their own cache history
+## A merge has to remember which branch did the work
 
-There is another bookkeeping problem when pipelines split and merge. If a node only went through the right branch, marking it in the left branch's cache would let a later run skip work the left branch never did.
+Suppose a document passes through the right branch's cache filter, then the branches merge. Writing that document into the left branch's cache would claim the left branch had processed it too. On a future run, that claim could suppress work the branch had never done.
 
-The patch records pairs of cache registration and source ID. After a merge, a completed source is marked only in the caches whose filters it actually passed. Failure registries from independently built pipelines are linked too, so merging does not lose a branch's failure history.
+The patch keeps pairs of cache registration and source ID, so completion only updates caches whose filters that source actually passed. It also links the failure registries of independently built pipelines when they merge. A branch's failed document stays failed after the merge.
 
-The merged tests cover successful completion, downstream failure, already-cached nodes, chunk deduplication, and multiple caches. They also check a chunker failing after its first successful child, cache scope across split branches, and failures carried through a merge of independent pipelines.
+This is where the fix grew beyond moving a write. Completion needs a source identity and a history of where that source went.
 
-**Source:** [merged PR and regression tests](https://github.com/bosun-ai/swiftide/pull/1164/files), [pipeline implementation at the merge commit](https://github.com/bosun-ai/swiftide/blob/ad42fa97caee7e0702711222d28ec9c6f56c84d5/swiftide-indexing/src/pipeline.rs).
+## The repeat work I'm willing to accept
+
+An unhandled stream error exits `run()` before cache marking. Even documents that completed earlier can be processed again next time. The cache and the storage backend aren't one transaction, so downstream writes still need suitable retry behavior.
+
+That cost is visible and recoverable. A cache entry for unfinished work can quietly keep the document out of the index. I want the cache to make the stronger claim, even when a failed run leaves more work for the next one.
+
+The change also adds a required `NodeCache.set_by_id` method. Custom cache implementations need to implement the deferred write. The merged regressions cover the ordinary success and failure paths, plus the partial chunk failure and branch-specific completion cases above.
+
+My [Swiftide PR #1164](https://github.com/bosun-ai/swiftide/pull/1164) merged on September 16, 2026. [Changes and regression tests](https://github.com/bosun-ai/swiftide/pull/1164/files) · [Pipeline at the merge commit](https://github.com/bosun-ai/swiftide/blob/ad42fa97caee7e0702711222d28ec9c6f56c84d5/swiftide-indexing/src/pipeline.rs).

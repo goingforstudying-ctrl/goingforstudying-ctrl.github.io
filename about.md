@@ -4,10 +4,10 @@ title: About
 permalink: /about/
 ---
 
-I contribute to open source as **goingforstudying-ctrl**. My machine learning and AI engineering work covers framework correctness, LLM inference, retrieval pipelines, and MCP tools. I also fix concurrency and state-management bugs in distributed backends.
+I contribute to open source as **goingforstudying-ctrl**, working on machine learning and AI engineering. That includes ML framework correctness, LLM inference, retrieval pipelines, and MCP tools. I also spend time in the distributed backends these systems rely on.
 
-I write about the parts of a patch that need more explanation than the diff gives: why a forward mask breaks a gradient, when an indexing cache can mark a document complete, or how an old event reaches a resumed task.
+I'm drawn to bugs where the original code makes a convincing argument for itself. TensorFlow reused a forward operation to calculate a gradient. Swiftide cached a document so it wouldn't have to process it again. Following those decisions far enough explains both their appeal and their failure.
 
-Each technical note links to a merged public PR and discusses its regression coverage and tradeoffs.
+These notes are where I put that longer explanation. I want a reader to be able to follow the failure, understand the change, and judge whether the regression test earns its confidence. Each technical post links to the merged public patch.
 
 [GitHub profile and selected contributions](https://github.com/goingforstudying-ctrl)

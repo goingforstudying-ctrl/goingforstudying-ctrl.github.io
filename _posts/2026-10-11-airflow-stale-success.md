@@ -1,36 +1,42 @@
 ---
 layout: post
-title: "A delayed success event can fail a healthy task"
+title: "A late success sent Airflow down the failure path"
 permalink: /notes/airflow-stale-success/
 categories: [distributed-systems, state-machines]
-excerpt: "An Airflow task had already resumed after deferral when the scheduler received an older executor success event. The missing case was QUEUED."
+excerpt: "The worker's success report was accurate. By the time the scheduler read it, the task had already resumed, and the state guard was one state short."
 ---
 
-An Airflow task had resumed after deferral and was waiting in `QUEUED`. Then the scheduler received an older executor `SUCCESS` event and could send the task down the failure path.
+`SUCCESS` is an odd event to blame for a failed task. In this Airflow race, the worker's success report was accurate. It described the worker exiting after deferral. By the time the scheduler read that report, the task had already resumed and was queued to continue.
 
-Put yourself in the scheduler's position: the database says this task is queued, while the executor says it succeeded. Both observations can be right. The event described the worker that had exited during deferral; the task state described its continuation. My [Apache Airflow fix, #68741](https://github.com/apache/airflow/pull/68741), merged on July 2, 2026, teaches the existing state guard to recognize that ordering.
+The scheduler saw a mismatch: a queued task and a success event. Its failure path made sense for other mismatches, but here it could punish a task for having moved on before the event was processed.
 
-## The event arrived after the task moved on
+## The task had a head start
 
-A deferrable task stops its worker execution while waiting for a trigger. The trigger later resumes the task; the scheduler processes executor events separately.
-
-The failing sequence was:
+A deferrable task stops its worker execution while it waits for a trigger. The trigger can later resume the task independently of when the scheduler processes the old executor event. That gives this ordering room to happen:
 
 1. The task defers and its worker exits.
 2. The trigger resumes the task.
 3. The task reaches `QUEUED` for its continuation.
 4. The scheduler processes the older executor `SUCCESS` event from the worker's defer exit.
 
-Airflow already handled the case where the continuation was in `SCHEDULED`. It checked `next_method`, the continuation marker, before ignoring the stale success event. By the time this event arrived, the task could already have moved to `QUEUED`.
+The old event and the current database state describe different moments in the same task's execution. Comparing their state names alone loses that history.
 
-The patch extends that state check to accept either `SCHEDULED` or `QUEUED`. It still requires an incoming `SUCCESS` and a `next_method` that is not `None`. A queued task without that continuation marker must still go through ordinary state-mismatch handling.
+## The guard stopped at `SCHEDULED`
 
-## One regression, with the exception turned off
+Airflow already recognized this race when the resumed task was still `SCHEDULED`. The guard looked for `next_method`, the continuation marker, before ignoring the stale success. The missing case was a continuation that had advanced one state further, to `QUEUED`.
 
-The new test puts a task in `QUEUED` with `next_method = "execute_callback"` and delivers the stale success event. It checks that the task remains queued, no failure callback is sent, and no unexpected metric is recorded.
+I extended the check to accept either state. The other conditions stay specific: the incoming event must be `SUCCESS`, and `next_method` must not be `None`.
 
-Then it removes `next_method` and delivers the same event again. This time, the scheduler must record `scheduler.tasks.killed_externally`.
+This is the part of the patch I wanted to keep small. A queued task without a continuation marker can still represent a real state mismatch. Teaching the scheduler about this ordering shouldn't make it ignore that case.
 
-I like the second half of this test more than a second successful example. It changes the condition that justifies the exception. A patch that ignored too many success events could pass the first half and fail the second.
+## The test gets more useful when the marker disappears
 
-**Source:** [merged PR, state guard, and regression test](https://github.com/apache/airflow/pull/68741/files).
+The regression starts with a queued task and `next_method = "execute_callback"`, then delivers the old success event. The task must remain queued. No failure callback should be sent, and no unexpected metric should be recorded.
+
+That proves the reported race is handled. Then the test removes `next_method` and delivers the same event again. Now the scheduler must record `scheduler.tasks.killed_externally`.
+
+I like that second half because it asks the fix to stop helping. A guard that ignored every queued-task success could pass the first half. Removing the marker exposes that overly broad fix without needing a different scenario.
+
+The implementation change is a state check. Most of the explanation lives in the ordering above and in the test that removes the reason for the exception.
+
+My [Apache Airflow PR #68741](https://github.com/apache/airflow/pull/68741) merged on July 2, 2026. [State guard and regression test](https://github.com/apache/airflow/pull/68741/files).
