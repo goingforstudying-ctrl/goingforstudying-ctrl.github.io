@@ -1,7 +1,11 @@
-title: goingforstudying
-description: "Deep-dive engineering notes: distributed systems, observability, and bugs that only show up at 3am."
+title: goingforstudying-ctrl
+description: "Engineering notes on AI infrastructure, distributed systems, and the reasoning behind merged fixes."
 theme: minima
 author: goingforstudying-ctrl
+url: "https://goingforstudying-ctrl.github.io"
+github_username: goingforstudying-ctrl
+header_pages:
+  - about.md
 plugins:
   - jekyll-feed
 show_excerpts: true

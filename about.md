@@ -4,8 +4,10 @@ title: About
 permalink: /about/
 ---
 
-I work on observability infrastructure. In my free time I contribute to open source — mostly distributed systems, concurrency bugs, and storage/consensus edge cases.
+I contribute to open source as **goingforstudying-ctrl**, focusing on AI infrastructure, distributed systems, and developer tools.
 
-This blog is where I write up the interesting fixes: race conditions, deadlocks, state-machine bugs. The kind you can't find by reading docs.
+These notes explain the reasoning behind merged fixes. The recurring questions are practical: who owns this resource, which event is stale, and what does this boundary case mean mathematically?
 
-Every post links the actual merged PR. Code talks.
+The write-ups distinguish the failure, the patch, the tests in the upstream PR, and the remaining tradeoffs. They describe public open-source work.
+
+[GitHub profile and selected contributions](https://github.com/goingforstudying-ctrl)
