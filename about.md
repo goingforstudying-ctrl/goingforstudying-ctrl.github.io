@@ -4,10 +4,10 @@ title: About
 permalink: /about/
 ---
 
-I contribute to open source as **goingforstudying-ctrl**, focusing on AI infrastructure, distributed systems, and developer tools.
+I contribute to open source as **goingforstudying-ctrl**. My machine learning and AI engineering work covers framework correctness, LLM inference, retrieval pipelines, and MCP tools. I also fix concurrency and state-management bugs in distributed backends.
 
-These notes explain the reasoning behind merged fixes. The recurring questions are practical: who owns this resource, which event is stale, and what does this boundary case mean mathematically?
+I write about the parts of a patch that need more explanation than the diff gives: why a forward mask breaks a gradient, when an indexing cache can mark a document complete, or how an old event reaches a resumed task.
 
-The write-ups distinguish the failure, the patch, the tests in the upstream PR, and the remaining tradeoffs. They describe public open-source work.
+Each technical note links to a merged public PR and discusses its regression coverage and tradeoffs.
 
 [GitHub profile and selected contributions](https://github.com/goingforstudying-ctrl)

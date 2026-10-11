@@ -6,44 +6,34 @@ categories: [machine-learning, numerical-correctness]
 excerpt: "A TensorFlow gradient reused a mask from the forward calculation. At x = 0, the value was right and the derivative was wrong."
 ---
 
-`xlogy(0, y)` is zero. That does not make its derivative with respect to `x` zero.
+At `x = 0` and `y = 3.1`, TensorFlow's `xlogy` returned the right value: zero. Its gradient with respect to `x` was also zero. That part was wrong; the slope is about `1.1314`.
 
-That distinction is the core of my [TensorFlow fix, #119869](https://github.com/tensorflow/tensorflow/pull/119869), merged on July 16, 2026. It corrects the gradients of `tf.math.xlogy` and `tf.math.xlog1py` at `x = 0`.
+My [TensorFlow fix, #119869](https://github.com/tensorflow/tensorflow/pull/119869), merged on July 16, 2026, corrects this case for `tf.math.xlogy` and `tf.math.xlog1py`. The implementation reused a forward-pass mask, and the tests had learned to expect its result.
 
-## The value and the slope answer different questions
+## Where the zero came from
 
-For a fixed positive `y`, `xlogy(x, y)` is the linear function `x * log(y)`. Its value at `x = 0` is zero, but its slope there is `log(y)`.
+For a fixed positive `y`, `xlogy(x, y)` is the linear function `x * log(y)`. At the origin its value is zero and its slope is `log(y)`. A small change in `x` immediately changes the result. A zero gradient would tell an optimizer that the function is flat there.
 
-Take `y = 3.1`. The value is zero at the origin, while the derivative is about `1.1314`. Moving `x` a small amount changes the result immediately. Returning a zero gradient would tell an optimizer that the function is flat at that point.
+Reading the gradient code, I can see why the mask looked useful. The forward operation already needed special handling at zero. Reusing that machinery seems reasonable until you write down the slope.
 
-The same reasoning applies to `xlog1py(x, y) = x * log1p(y)` for `y > -1`: its derivative with respect to `x` is `log1p(y)`.
+The old gradient code created a mask indicating whether `x` was nonzero. It computed the partial derivative with respect to `x` using `xlogy(mask, y)` or `xlog1py(mask, y)`.
 
-## How the forward mask reached the gradient
+Away from zero, the mask was one, so this returned the expected logarithm. At zero, the mask erased it. The forward operation deliberately returns zero when `x` is zero; carrying that behavior into the derivative removed a valid slope.
 
-The old gradient code created a mask indicating whether `x` was nonzero. It then computed the partial derivative with respect to `x` using `xlogy(mask, y)` or `xlog1py(mask, y)`.
+The same reasoning applies to `xlog1py(x, y) = x * log1p(y)` for `y > -1`. Its partial derivative with respect to `x` is `log1p(y)`.
 
-When `x` was nonzero, the mask was one and the result matched the expected logarithm. At `x = 0`, the mask became zero and erased the slope.
+## Changing the partial derivative
 
-The forward operation has a useful special case: it returns zero when `x` is zero. Reusing that special case inside the derivative silently changed the mathematics. A branch that produces the desired function value does not necessarily produce the desired derivative.
-
-The patch computes the partial derivatives directly:
+I replaced the masked operations with the logarithms directly:
 
 | Operation | Partial with respect to `x` |
 | :--- | :--- |
 | `xlogy(x, y)` | `log(y)` |
 | `xlog1py(x, y)` | `log1p(y)` |
 
-It keeps the existing partial derivatives with respect to `y` and the existing broadcast reduction logic. The change is confined to the incorrect partial.
+The partial derivatives with respect to `y` and the broadcast reduction logic stay as they were. Only the incorrect partial needed to change.
 
-## The regression expectations matter as much as the formula
-
-The upstream tests had expected zero for the `x` gradient at zero. Fixing the implementation therefore also required correcting those expectations.
-
-The merged tests exercise `float16`, `float32`, and `float64`. They check the ordinary zero-`x` case and the logarithm boundary: `y = 0` for `xlogy`, and `y = -1` for `xlog1py`. At those boundaries, the implemented `x` gradient is negative infinity, not zero. The positive-domain slope argument above does not assert a finite classical derivative at a singularity.
-
-The tests also retain checks of the `y` gradient. That is useful because a fix to one partial should not accidentally change the other.
-
-A small mathematical sanity check needs no framework:
+For the positive-domain case, this small check needs no framework:
 
 ```python
 from math import isclose, log
@@ -54,8 +44,12 @@ slope = ((h * log(y)) - (-h * log(y))) / (2 * h)
 assert isclose(slope, log(y), rel_tol=1e-12)
 ```
 
-This illustrates the positive-domain derivative. The framework regression tests in the PR check TensorFlow's implementation and its edge-case behavior.
+## The tests expected the wrong result too
 
-When reviewing a custom gradient, I now check the branch points explicitly. A forward result can look entirely reasonable while its gradient removes the signal needed to move away from that point.
+This was the part I wanted to make explicit in the patch: an existing test can preserve the bug just as effectively as the implementation. The zero-`x` expectations had to change with the formula.
+
+The merged tests cover `float16`, `float32`, and `float64`, including the ordinary case above and the logarithm boundaries: `y = 0` for `xlogy`, and `y = -1` for `xlog1py`. At those boundaries, TensorFlow's implemented `x` gradient is negative infinity. There is no finite classical derivative at those singularities; the positive-domain argument does not extend to them.
+
+The tests retain the zero expectations for the `y` gradient. That checks that fixing one partial leaves the other intact. The finite-difference snippet checks the mathematics at a positive `y`; the tests in the PR check TensorFlow's implementation and its boundary behavior.
 
 **Source:** [merged PR and test changes](https://github.com/tensorflow/tensorflow/pull/119869/files).

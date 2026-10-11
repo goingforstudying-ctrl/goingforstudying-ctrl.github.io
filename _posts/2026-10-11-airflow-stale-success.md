@@ -6,47 +6,31 @@ categories: [distributed-systems, state-machines]
 excerpt: "An Airflow task had already resumed after deferral when the scheduler received an older executor success event. The missing case was QUEUED."
 ---
 
-A message saying “success” can still cause the wrong state transition if it describes an earlier phase of the task.
+An Airflow task had resumed after deferral and was waiting in `QUEUED`. Then the scheduler received an older executor `SUCCESS` event and could send the task down the failure path.
 
-My [Apache Airflow fix, #68741](https://github.com/apache/airflow/pull/68741), merged on July 2, 2026, covers that case for a deferred task that has already returned to `QUEUED`.
+Put yourself in the scheduler's position: the database says this task is queued, while the executor says it succeeded. Both observations can be right. The event described the worker that had exited during deferral; the task state described its continuation. My [Apache Airflow fix, #68741](https://github.com/apache/airflow/pull/68741), merged on July 2, 2026, teaches the existing state guard to recognize that ordering.
 
-## The two timelines
+## The event arrived after the task moved on
 
-A deferrable task can stop its worker execution while waiting for a trigger. The trigger later resumes the task, and the scheduler processes executor events separately.
+A deferrable task stops its worker execution while waiting for a trigger. The trigger later resumes the task; the scheduler processes executor events separately.
 
-The failing ordering was:
+The failing sequence was:
 
 1. The task defers and its worker exits.
 2. The trigger resumes the task.
 3. The task reaches `QUEUED` for its continuation.
 4. The scheduler processes the older executor `SUCCESS` event from the worker's defer exit.
 
-The current task state and the event refer to different points in the lifecycle. Treating the event as a fresh statement about the queued continuation produces a state mismatch and can fail the task.
+Airflow already handled the case where the continuation was in `SCHEDULED`. It checked `next_method`, the continuation marker, before ignoring the stale success event. By the time this event arrived, the task could already have moved to `QUEUED`.
 
-## The existing guard was nearly right
+The patch extends that state check to accept either `SCHEDULED` or `QUEUED`. It still requires an incoming `SUCCESS` and a `next_method` that is not `None`. A queued task without that continuation marker must still go through ordinary state-mismatch handling.
 
-Airflow already recognized a variant where the task had returned to `SCHEDULED`. That guard used the continuation marker, `next_method`, to identify the resume-after-deferral case.
+## One regression, with the exception turned off
 
-The missing state was `QUEUED`. Depending on scheduler timing, the resumed task could already have moved past `SCHEDULED` before the delayed executor event was processed.
+The new test puts a task in `QUEUED` with `next_method = "execute_callback"` and delivers the stale success event. It checks that the task remains queued, no failure callback is sent, and no unexpected metric is recorded.
 
-The patch extends the existing guard to accept either `SCHEDULED` or `QUEUED`, while retaining two conditions: the incoming event is `SUCCESS`, and `next_method` is set.
+Then it removes `next_method` and delivers the same event again. This time, the scheduler must record `scheduler.tasks.killed_externally`.
 
-Those conditions matter. Ignoring every success event for every queued task would hide unrelated state mismatches. The fix needs to recognize the continuation case without broadening the exception beyond it.
-
-## The negative case makes the test useful
-
-The added regression sets up a queued task with `next_method = "execute_callback"`, then delivers the stale success event. It checks that the task remains queued, no failure callback is sent, and no unexpected metric is recorded.
-
-The test then removes `next_method` and delivers the same event again. This time, it checks that the ordinary state-mismatch handling still records `scheduler.tasks.killed_externally`.
-
-That second half is essential. A test that only asserted “the task did not fail” could also pass for a patch that suppressed too many events. The negative case constrains the exception to the intended lifecycle state.
-
-## A small patch can encode a larger distinction
-
-The implementation change is a small expansion of a state check. The reasoning is about event meaning: is this event about the execution that just ended, or the continuation that has already been scheduled?
-
-An event's status alone cannot answer that. The scheduler needs the current state and the continuation marker to interpret it correctly.
-
-For state-machine bugs, I find it useful to write down both timelines before changing the condition. Then I look for a test that covers the intended exception and another that proves the normal guard still works.
+I like the second half of this test more than a second successful example. It changes the condition that justifies the exception. A patch that ignored too many success events could pass the first half and fail the second.
 
 **Source:** [merged PR, state guard, and regression test](https://github.com/apache/airflow/pull/68741/files).
