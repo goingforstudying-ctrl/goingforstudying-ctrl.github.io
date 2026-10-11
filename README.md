@@ -12,3 +12,9 @@ Notes on machine learning, AI engineering, and distributed systems, published as
 - [A late success sent Airflow down the failure path](https://goingforstudying-ctrl.github.io/notes/airflow-stale-success/): a resumed task, an old worker event, and a state guard that stopped one state short.
 
 Each technical note links to the merged upstream PR. This repository contains the writing and Jekyll source for the site.
+
+## Site structure
+
+Custom Jekyll layouts live in `_layouts/`. The article index and contribution list use `_data/notes.yml` and `_data/work.yml`. Article Markdown and permalinks remain under `_posts/`.
+
+The site bundles its fonts and their open-font licenses in `assets/fonts/`. CSS and a small JavaScript file provide responsive reading layouts, light and dark themes, article filters, and the gradient illustration.

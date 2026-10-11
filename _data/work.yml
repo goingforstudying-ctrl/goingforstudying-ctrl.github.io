@@ -1,0 +1,118 @@
+- project: TensorFlow
+  area: ML framework correctness
+  short: Correct gradients at zero
+  number: 119869
+  url: https://github.com/tensorflow/tensorflow/pull/119869
+  note: /notes/tensorflow-zero-gradient/
+  description: "Corrected the xlogy and xlog1py gradients at x = 0, where a forward-pass mask erased a valid derivative. Updated the tests that expected the old result."
+- project: Swiftide
+  area: Retrieval & indexing
+  short: Cache documents after completion
+  number: 1164
+  url: https://github.com/bosun-ai/swiftide/pull/1164
+  note: /notes/swiftide-indexing-cache/
+  description: "Deferred cache writes until processing completes. Preserved source identity through chunking, tracked filtered failures, and kept completion writes within the caches a source actually passed."
+- project: OGX
+  area: LLM inference
+  short: Close abandoned inference streams
+  number: 6506
+  url: https://github.com/ogx-ai/ogx/pull/6506
+  description: "Closed upstream inference streams when consumers disconnect or abandon responses. The merged work includes the maintainer's context-handling fix."
+- project: Apache Superset
+  area: MCP tools
+  short: Isolate concurrent tool sessions
+  number: 42629
+  url: https://github.com/apache/superset/pull/42629
+  description: "Isolated database sessions for concurrent async MCP tool calls, so one invocation's cleanup cannot detach another invocation's objects. Preserved the default scope outside those calls."
+- project: Swiftide
+  area: Pipeline observability
+  short: Track tokens and processing time
+  number: 1038
+  url: https://github.com/bosun-ai/swiftide/pull/1038
+  description: "Added processing counters, per-model token usage, and timing statistics for indexing pipelines."
+- project: NVIDIA NVCF
+  area: Model artifacts
+  short: Inventory model and dataset artifacts
+  number: 457
+  url: https://github.com/NVIDIA/nvcf/pull/457
+  description: "Added a Function-to-Task reference pipeline to inventory model and dataset artifacts, with deterministic hashing and bounded polling."
+- project: Celery
+  area: Concurrency
+  short: Serialize shared Redis pub/sub access
+  number: 10671
+  url: https://github.com/celery/celery/pull/10671
+  note: /notes/celery-pubsub-concurrency/
+  description: "Serialized shared Redis pub/sub access across result polling and subscription changes. Accounted for nested callbacks, idle waits, and replacement of inherited locks after a fork."
+- project: Apache Airflow
+  area: Distributed state
+  short: Recognize a delayed executor success
+  number: 68741
+  url: https://github.com/apache/airflow/pull/68741
+  note: /notes/airflow-stale-success/
+  description: "Recognized stale executor success events after a deferred task returned to QUEUED. Kept ordinary mismatch handling for tasks without a continuation marker."
+- project: rqlite
+  area: Distributed storage
+  short: Order snapshots when clocks move back
+  number: 2812
+  url: https://github.com/rqlite/rqlite/pull/2812
+  description: "Preserved snapshot ordering when the wall clock moves backwards."
+- project: aiohttp
+  area: Networking
+  short: Fix a connector shutdown race
+  number: 12787
+  url: https://github.com/aio-libs/aiohttp/pull/12787
+  description: "Fixed a connector shutdown race involving DNS lookups."
+- project: OGX
+  area: LLM integrations
+  short: Persist vector-store metadata
+  number: 6371
+  url: https://github.com/ogx-ai/ogx/pull/6371
+  description: "Persisted vector-store metadata."
+- project: Dify
+  area: AI application infrastructure
+  short: Shorten icon lookup sessions
+  number: 36903
+  url: https://github.com/langgenius/dify/pull/36903
+  description: "Shortened database sessions for icon lookups."
+- project: AutoGPT
+  area: LLM integrations
+  short: Handle empty provider responses
+  number: 12540
+  url: https://github.com/Significant-Gravitas/AutoGPT/pull/12540
+  description: "Handled empty provider responses."
+- project: VS Code
+  area: Developer tools
+  short: Keep a status item on one line
+  number: 318935
+  url: https://github.com/microsoft/vscode/pull/318935
+  description: "Kept a single-line status item from wrapping."
+- project: Deno
+  area: Developer tools
+  short: Prevent an LSP timing panic
+  number: 34410
+  url: https://github.com/denoland/deno/pull/34410
+  description: "Prevented an LSP timing panic."
+- project: Memos
+  area: Developer tools
+  short: Generate meta descriptions
+  number: 6000
+  url: https://github.com/usememos/memos/pull/6000
+  description: "Added generated meta descriptions."
+- project: Ballista
+  area: Distributed infrastructure
+  short: Classify retryable wrapped I/O errors
+  number: 2119
+  url: https://github.com/apache/datafusion-ballista/pull/2119
+  description: "Classified wrapped retryable I/O errors."
+- project: Celery
+  area: Task infrastructure
+  short: Release retained result messages
+  number: 10366
+  url: https://github.com/celery/celery/pull/10366
+  description: "Released retained result messages."
+- project: Prefect
+  area: Task infrastructure
+  short: Support ECS placement configuration
+  number: 22417
+  url: https://github.com/PrefectHQ/prefect/pull/22417
+  description: "Added support for ECS placement configuration."

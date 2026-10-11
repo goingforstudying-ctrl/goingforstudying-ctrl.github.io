@@ -1,0 +1,33 @@
+---
+layout: default
+---
+<div class="shell">
+  <section class="home-hero" aria-labelledby="home-title">
+    <div class="hero-copy">
+      <p class="eyebrow"><span class="small-dot" aria-hidden="true"></span>MLE &amp; AI Engineering</p>
+      <h1 id="home-title">The test was<br>protecting<br><em>the bug.</em></h1>
+      <p class="hero-intro">TensorFlow returned the wrong gradient.<br class="desktop-break"> An existing test expected it.</p>
+      <p class="hero-detail">I work on ML frameworks and the systems around them. These are the bugs I followed, the patches that merged, and the reasoning a diff can't quite hold.</p>
+      <a class="primary-link" href="{{ '/notes/tensorflow-zero-gradient/' | relative_url }}">Read the TensorFlow story <span aria-hidden="true">↗</span></a>
+    </div>
+    <div class="hero-figure">{% include gradient.html %}<p class="figure-margin-note">A small counterexample.<br>A surprisingly persistent assumption.</p></div>
+  </section>
+  <section class="notes-section" id="notes" aria-labelledby="notes-title">
+    <div class="section-heading"><div><p class="eyebrow">01 / From the debugging notebook</p><h2 id="notes-title">Follow the failure.</h2></div><p class="section-aside">Four stories, with the code<br>and tests behind each one.</p></div>
+    <div class="note-filters" role="group" aria-label="Filter engineering notes" hidden><button type="button" class="selected" data-filter="all" aria-pressed="true">All notes <span>04</span></button><button type="button" data-filter="ai" aria-pressed="false">ML &amp; AI</button><button type="button" data-filter="systems" aria-pressed="false">Distributed systems</button><span class="filter-result" role="status" aria-live="polite"></span></div>
+    <div class="notes-list">
+      {% for note in site.data.notes %}{% assign entry = site.posts | where: 'permalink', note.url | first %}{% assign words = entry.content | strip_html | number_of_words %}{% assign minutes = words | divided_by: 220 | plus: 1 %}
+      <article class="note-row" data-note-category="{{ note.group }}">
+        <div class="note-index">{{ forloop.index | prepend: '0' }}<span aria-hidden="true">/</span></div>
+        <div class="note-body"><p class="note-meta"><span>{{ note.project }}</span><span>{{ note.label }}</span></p><h3><a href="{{ note.url | relative_url }}">{{ entry.title }}</a></h3><p>{{ entry.excerpt | strip_html }}</p><div class="note-bottom"><time datetime="{{ entry.date | date: '%Y-%m-%d' }}">{{ entry.date | date: '%b %d, %Y' }}</time><span>{{ minutes }} min read</span></div></div>
+        <a class="note-arrow" href="{{ note.url | relative_url }}" aria-label="Read {{ entry.title | escape }}"><span aria-hidden="true">↗</span></a>
+      </article>
+      {% endfor %}
+    </div>
+  </section>
+  <section class="work-preview" aria-labelledby="work-title">
+    <div class="section-heading"><div><p class="eyebrow">02 / Beyond the write-ups</p><h2 id="work-title">A few merged patches.</h2></div><a class="quiet-link" href="{{ '/work/' | relative_url }}">All selected contributions <span aria-hidden="true">↗</span></a></div>
+    <div class="contribution-layout"><div class="contribution-summary"><p class="big-number">47<span>merged public PRs</span></p><p class="contribution-caption">Across 28 repositories.<br>ML frameworks, AI infrastructure,<br>and distributed backends.</p><a class="quiet-link" href="https://github.com/search?q=author%3Agoingforstudying-ctrl+is%3Apr+is%3Amerged+is%3Apublic&amp;type=pullrequests">Browse on GitHub ↗</a><p class="data-date">Count checked Oct 11, 2026.</p></div><div class="contribution-list">{% for work in site.data.work limit: 6 %}<a class="contribution-row" href="{{ work.url }}"><span class="contribution-project">{{ work.project }}</span><span class="contribution-description">{{ work.short }}</span><span class="pr-number">#{{ work.number }} <span aria-hidden="true">↗</span></span></a>{% endfor %}</div></div>
+  </section>
+  <aside class="closing-note"><span class="handwritten" aria-hidden="true">one more thing ↗</span><p>I tend to stay with a bug until I can explain<br class="desktop-break"> why the original code looked reasonable.</p><a class="quiet-link" href="{{ '/about/' | relative_url }}">About this notebook ↗</a></aside>
+</div>

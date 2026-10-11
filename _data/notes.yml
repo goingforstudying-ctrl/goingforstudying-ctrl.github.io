@@ -1,0 +1,20 @@
+- url: /notes/tensorflow-zero-gradient/
+  project: TensorFlow
+  label: ML framework correctness
+  group: ai
+  source: https://github.com/tensorflow/tensorflow/pull/119869
+- url: /notes/swiftide-indexing-cache/
+  project: Swiftide
+  label: Retrieval & indexing
+  group: ai
+  source: https://github.com/bosun-ai/swiftide/pull/1164
+- url: /notes/celery-pubsub-concurrency/
+  project: Celery
+  label: Concurrency
+  group: systems
+  source: https://github.com/celery/celery/pull/10671
+- url: /notes/airflow-stale-success/
+  project: Apache Airflow
+  label: Distributed state
+  group: systems
+  source: https://github.com/apache/airflow/pull/68741

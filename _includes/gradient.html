@@ -1,0 +1,20 @@
+<figure class="gradient-figure" data-gradient>
+  <div class="figure-heading"><span class="eyebrow">Fig. 01 / TensorFlow</span><span class="figure-status"><span aria-hidden="true"></span>At the origin</span></div>
+  <svg class="gradient-plot" viewBox="0 0 460 290" role="img" aria-labelledby="gradient-title gradient-description">
+    <title id="gradient-title">A zero value with a nonzero slope</title>
+    <desc id="gradient-description">The straight line f(x) = x times log(3.1) crosses the origin. Its slope is about 1.1314, including at zero. The old gradient incorrectly returned zero at that point.</desc>
+    <defs><pattern id="plot-grid" width="32" height="32" patternUnits="userSpaceOnUse"><circle cx="1" cy="1" r="1" fill="currentColor" opacity=".16"/></pattern></defs>
+    <rect x="28" y="12" width="404" height="258" rx="4" fill="url(#plot-grid)"/>
+    <g class="plot-axes" fill="none" stroke="currentColor" stroke-width="1"><path d="M40 154H422M214 24V270"/><path d="m416 150 6 4-6 4M210 30l4-6 4 6"/></g>
+    <text class="plot-label" x="420" y="176">x</text><text class="plot-label" x="226" y="32">f(x)</text><text class="plot-label" x="195" y="176">0</text>
+    <path class="correct-line" d="M58 254 370 54" fill="none" stroke-width="3" stroke-linecap="round"/>
+    <path class="old-tangent" d="M142 154H286" fill="none" stroke-width="2.5" stroke-dasharray="5 6" stroke-linecap="round"/>
+    <circle class="plot-halo" cx="214" cy="154" r="13"/>
+    <circle class="plot-point" cx="214" cy="154" r="5.5" stroke-width="3"/>
+    <text class="line-annotation" x="288" y="60">slope = log(3.1)</text><text class="old-annotation" x="246" y="188">old gradient: 0</text>
+    <text class="equation-label" x="45" y="42">f(x) = x · log(3.1)</text>
+  </svg>
+  <div class="gradient-values" aria-live="polite" aria-atomic="true"><div><span>Forward value</span><strong data-forward>0.0000</strong></div><div><span>Correct gradient</span><strong class="correct-value">1.1314</strong></div><div><span>Old gradient</span><strong class="old-value" data-old>0.0000</strong></div></div>
+  <div class="gradient-control" hidden><label for="gradient-x">Move x <output id="gradient-output" for="gradient-x">0.0</output></label><input id="gradient-x" type="range" min="-1" max="1" value="0" step="0.1" aria-describedby="gradient-hint"><button type="button" class="text-button" data-reset>Reset to zero ↺</button></div>
+  <figcaption id="gradient-hint">The value is zero. The slope is still there.</figcaption>
+</figure>

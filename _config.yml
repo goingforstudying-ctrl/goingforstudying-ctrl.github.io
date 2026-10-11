@@ -1,11 +1,16 @@
-title: goingforstudying-ctrl
+title: Field Notes
 description: "Machine learning and AI engineering notes: gradients, retrieval pipelines, inference systems, and distributed backends."
-theme: minima
 author: goingforstudying-ctrl
 url: "https://goingforstudying-ctrl.github.io"
 github_username: goingforstudying-ctrl
-header_pages:
-  - about.md
 plugins:
   - jekyll-feed
-show_excerpts: true
+markdown: kramdown
+highlighter: rouge
+kramdown:
+  input: GFM
+  syntax_highlighter: rouge
+exclude:
+  - README.md
+  - Gemfile
+  - Gemfile.lock

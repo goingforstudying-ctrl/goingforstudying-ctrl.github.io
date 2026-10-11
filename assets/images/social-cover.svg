@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="630" viewBox="0 -145 1200 630" role="img" aria-labelledby="title description">
+<title id="title">The test was protecting the bug.</title>
+<desc id="description">Field notes on MLE and AI Engineering by goingforstudying-ctrl. A line through the origin has a zero value and a nonzero slope.</desc>
+<defs><pattern id="dots" width="26" height="26" patternUnits="userSpaceOnUse"><circle cx="1" cy="1" r="1" fill="#666d66" opacity=".2"/></pattern></defs>
+<rect x="0" y="-145" width="1200" height="630" rx="3" fill="#f7f5ef"/>
+<rect width="1200" height="5" fill="#276958"/>
+<g font-family="ui-monospace, SFMono-Regular, Consolas, monospace" fill="#666d66"><circle cx="58" cy="53" r="3" fill="#276958"/><text x="73" y="58" font-size="13" letter-spacing="2">FIELD NOTES / MLE &amp; AI ENGINEERING</text><text x="57" y="299" font-size="14" letter-spacing=".3">goingforstudying-ctrl</text><text x="377" y="299" font-size="13">gradients · inference · retrieval · systems</text></g>
+<g font-family="Georgia, DejaVu Serif, serif" font-size="65" letter-spacing="-2.8"><text x="54" y="142" fill="#252b28">The test was</text><text x="54" y="219" fill="#276958" font-style="italic">protecting the bug.</text></g>
+<rect x="835" y="37" width="315" height="235" fill="url(#dots)"/>
+<g stroke="#e1e2d9" stroke-width="1.2" fill="none"><path d="M842 161H1141M977 48V268"/></g>
+<path d="M846 245 1119 70" stroke="#276958" stroke-width="3.5" stroke-linecap="round"/>
+<path d="M918 161H1040" stroke="#ab5034" stroke-width="2.5" stroke-dasharray="5 7" stroke-linecap="round"/>
+<circle cx="977" cy="161" r="15" fill="#e6ede5"/><circle cx="977" cy="161" r="6" fill="#276958" stroke="#f7f5ef" stroke-width="3"/>
+<g font-family="ui-monospace, SFMono-Regular, Consolas, monospace" font-size="12"><text x="1020" y="64" fill="#276958">slope 1.1314</text><text x="1006" y="190" fill="#ab5034">old gradient 0</text><text x="863" y="300" fill="#666d66">VALUE 0 / SLOPE ≠ 0</text></g>
+</svg>

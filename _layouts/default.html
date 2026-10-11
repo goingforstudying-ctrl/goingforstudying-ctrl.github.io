@@ -1,0 +1,51 @@
+<!doctype html>
+<html lang="en" data-theme="light">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="light dark">
+  <meta name="theme-color" content="#f7f5ef">
+  <title>{% if page.title %}{{ page.title | escape }} · {% endif %}{{ site.title | escape }} · {{ site.author | escape }}</title>
+  <meta name="description" content="{{ page.excerpt | default: site.description | strip_html | normalize_whitespace | escape }}">
+  <link rel="canonical" href="{{ page.url | absolute_url }}">
+  <meta property="og:type" content="{% if page.layout == 'post' %}article{% else %}website{% endif %}">
+  <meta property="og:title" content="{{ page.title | default: site.title | escape }}">
+  <meta property="og:description" content="{{ page.excerpt | default: site.description | strip_html | normalize_whitespace | escape }}">
+  <meta property="og:url" content="{{ page.url | absolute_url }}">
+  <meta property="og:image" content="{{ '/assets/images/social-cover.png' | absolute_url }}">
+  <meta name="twitter:card" content="summary_large_image">
+  <link rel="icon" href="{{ '/assets/images/favicon.svg' | relative_url }}" type="image/svg+xml">
+  <link rel="alternate" type="application/atom+xml" title="Field Notes" href="{{ '/feed.xml' | relative_url }}">
+  <script>try{var t=localStorage.getItem('field-notes-theme');if(t==='dark'||t==='light')document.documentElement.dataset.theme=t;else if(window.matchMedia('(prefers-color-scheme: dark)').matches)document.documentElement.dataset.theme='dark'}catch(e){}</script>
+  <link rel="stylesheet" href="{{ '/assets/css/site.css' | relative_url }}">
+  <script src="{{ '/assets/js/site.js' | relative_url }}" defer></script>
+</head>
+<body class="{% if page.layout == 'home' %}home-page{% elsif page.layout == 'post' %}post-page{% else %}inner-page{% endif %}">
+  <a class="skip-link" href="#main">Skip to content</a>
+  <header class="site-header shell">
+    <a class="identity" href="{{ '/' | relative_url }}" aria-label="Field Notes home">
+      <span class="identity-mark" aria-hidden="true">g<span>/</span>s</span>
+      <span class="identity-copy"><strong>field notes</strong><span>goingforstudying-ctrl</span></span>
+    </a>
+    <nav class="site-nav" aria-label="Main navigation">
+      <a href="{{ '/#notes' | relative_url }}" {% if page.layout == 'home' or page.layout == 'post' %}class="active"{% endif %}>Notes</a>
+      <a href="{{ '/work/' | relative_url }}" {% if page.url == '/work/' %}class="active" aria-current="page"{% endif %}>Contributions</a>
+      <a href="{{ '/about/' | relative_url }}" {% if page.url == '/about/' %}class="active" aria-current="page"{% endif %}>About</a>
+      <span class="nav-divider" aria-hidden="true"></span>
+      <a class="icon-link" href="https://github.com/goingforstudying-ctrl" aria-label="GitHub profile">
+        <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 2a10 10 0 0 0-3.16 19.49c.5.09.68-.22.68-.48v-1.86c-2.78.6-3.37-1.18-3.37-1.18-.45-1.16-1.11-1.47-1.11-1.47-.91-.62.07-.61.07-.61 1 .07 1.53 1.03 1.53 1.03.89 1.52 2.34 1.08 2.91.83.09-.65.35-1.08.64-1.33-2.22-.25-4.56-1.11-4.56-4.94 0-1.09.39-1.98 1.03-2.68-.1-.25-.45-1.27.1-2.65 0 0 .84-.27 2.75 1.02A9.6 9.6 0 0 1 12 6.83c.85 0 1.71.11 2.51.34 1.91-1.3 2.75-1.02 2.75-1.02.55 1.38.2 2.4.1 2.65.64.7 1.03 1.59 1.03 2.68 0 3.84-2.34 4.68-4.58 4.93.36.31.68.92.68 1.85v2.75c0 .27.18.58.69.48A10 10 0 0 0 12 2Z"/></svg>
+      </a>
+      <button class="theme-toggle icon-link" type="button" aria-label="Switch to dark theme" hidden>
+        <svg class="moon-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><path d="M20.9 13A9 9 0 0 1 11 3.1 9 9 0 1 0 20.9 13Z"/></svg>
+        <svg class="sun-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v2m0 16v2M2 12h2m16 0h2M5 5l1.4 1.4m11.2 11.2L19 19M5 19l1.4-1.4M17.6 6.4 19 5"/></svg>
+      </button>
+    </nav>
+  </header>
+  <main id="main">{{ content }}</main>
+  <footer class="site-footer shell">
+    <div><a class="footer-title" href="{{ '/' | relative_url }}">field notes<span aria-hidden="true">.</span></a><p>Code, the bug behind it, and the reason for the fix.</p></div>
+    <div class="footer-links"><a href="https://github.com/goingforstudying-ctrl">GitHub ↗</a><a href="{{ '/feed.xml' | relative_url }}">RSS ↗</a><a href="{{ '/about/' | relative_url }}">About</a></div>
+    <p class="footer-colophon">Written as goingforstudying-ctrl. Built for reading.</p>
+  </footer>
+</body>
+</html>

@@ -1,0 +1,21 @@
+---
+layout: default
+---
+{% assign note = site.data.notes | where: 'url', page.permalink | first %}
+{% assign words = content | strip_html | number_of_words %}{% assign minutes = words | divided_by: 220 | plus: 1 %}
+<div class="reading-progress" aria-hidden="true"><span></span></div>
+<article class="article-shell">
+  <header class="article-header">
+    <a class="back-link" href="{{ '/#notes' | relative_url }}">← All notes</a>
+    <p class="eyebrow">{% if note %}{{ note.project }} / {{ note.label }}{% else %}Inside the notebook{% endif %}</p>
+    <h1>{{ page.title }}</h1>
+    {% if page.excerpt %}<p class="article-deck">{{ page.excerpt | strip_html }}</p>{% endif %}
+    <div class="article-meta"><span>goingforstudying-ctrl</span><time datetime="{{ page.date | date: '%Y-%m-%d' }}">{{ page.date | date: '%b %d, %Y' }}</time><span>{{ minutes }} min read</span>{% if note %}<a href="{{ note.source }}">Merged patch ↗</a>{% endif %}</div>
+  </header>
+  <div class="article-grid">
+    <aside class="article-sidebar"><nav class="article-toc" aria-label="On this page" hidden><p class="eyebrow">On this page</p><ol></ol></nav><a class="sidebar-back" href="{{ '/#notes' | relative_url }}">← Back to the notebook</a></aside>
+    <div class="article-content prose">{{ content }}</div>
+  </div>
+  {% if note %}<aside class="article-source"><span class="eyebrow">Follow the code</span><p>This story comes from a merged public contribution to {{ note.project }}.</p><a href="{{ note.source }}">Read the patch and its regression tests <span aria-hidden="true">↗</span></a></aside>{% endif %}
+  <section class="read-next" aria-labelledby="read-next-title"><p class="eyebrow" id="read-next-title">Keep following the thread</p><div>{% for related in site.data.notes %}{% if related.url != page.permalink %}{% assign related_post = site.posts | where: 'permalink', related.url | first %}<a href="{{ related.url | relative_url }}"><span>{{ related.project }}</span><strong>{{ related_post.title }}</strong><span aria-hidden="true">↗</span></a>{% endif %}{% endfor %}</div></section>
+</article>
