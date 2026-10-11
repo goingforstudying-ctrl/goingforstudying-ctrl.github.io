@@ -1,0 +1,11 @@
+<figure class="technical-figure" aria-labelledby="pubsub-figure-caption">
+  <div class="technical-figure-heading"><span class="eyebrow">Fig. 01 / Result consumer</span><span class="figure-tag">After the patch</span></div>
+  <div class="diagram-branches">
+    <div class="diagram-card"><span class="diagram-kicker">Drainer</span><strong>Poll for a result</strong><code>get_message()</code></div>
+    <div class="diagram-card"><span class="diagram-kicker">Result cleanup</span><strong>Remove a subscription</strong><code>unsubscribe()</code></div>
+  </div>
+  <div class="ownership-gate"><span class="diagram-arrow" aria-hidden="true">↓</span><span>One shared <code>RLock</code></span><span class="diagram-arrow" aria-hidden="true">↓</span></div>
+  <div class="diagram-card success-card socket-card"><span class="diagram-kicker">Shared Redis pub/sub object</span><strong>One caller owns the socket at a time</strong></div>
+  <div class="nested-callback"><span class="diagram-kicker">Reentry while processing a message</span><div><code>on_state_change</code><span aria-hidden="true">→</span><code>cancel_for</code><span aria-hidden="true">→</span><code>unsubscribe</code></div><p>The nested call acquires the same lock again.</p></div>
+  <figcaption id="pubsub-figure-caption">The lock covers both callers. Reentrancy lets a callback unsubscribe while the outer drainer call still holds it.</figcaption>
+</figure>

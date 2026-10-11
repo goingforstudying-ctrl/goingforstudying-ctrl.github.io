@@ -1,0 +1,14 @@
+<figure class="technical-figure" aria-labelledby="indexing-figure-caption">
+  <div class="technical-figure-heading"><span class="eyebrow">Fig. 01 / Retrieval pipeline</span><span class="figure-tag">Partial success</span></div>
+  <div class="completion-flow">
+    <div class="diagram-card source-card"><span class="diagram-kicker">Source A</span><strong>One document</strong><span>Passes the cache filter</span></div>
+    <span class="diagram-arrow" aria-hidden="true">↓</span>
+    <div class="diagram-branches">
+      <div class="diagram-card success-card"><span class="diagram-kicker">Chunker yields a child</span><strong>Child is stored</strong><span>Completion candidate: A</span></div>
+      <div class="diagram-card warning-card"><span class="diagram-kicker">Chunker then errors</span><strong>Source A is recorded failed</strong><span><code>filter_errors</code> drops the error</span></div>
+    </div>
+    <span class="diagram-arrow" aria-hidden="true">↓</span>
+    <div class="diagram-verdict"><span><code>run()</code> returns <code>Ok</code></span><strong>Source A stays uncached</strong><span>The next run can retry the source.</span></div>
+  </div>
+  <figcaption id="indexing-figure-caption">A successful child and a clean return can coexist with a failed source. The failure registry keeps that source eligible for retry.</figcaption>
+</figure>

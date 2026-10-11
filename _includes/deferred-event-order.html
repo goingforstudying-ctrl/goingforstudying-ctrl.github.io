@@ -1,0 +1,10 @@
+<figure class="technical-figure" aria-labelledby="defer-figure-caption">
+  <div class="technical-figure-heading"><span class="eyebrow">Fig. 01 / Airflow</span><span class="figure-tag">A late event</span></div>
+  <div class="event-timeline">
+    <div class="timeline-step"><span class="timeline-number" aria-hidden="true">01</span><div><span class="diagram-kicker">Worker</span><strong>Defers and exits</strong><p>Emits <code>SUCCESS</code>; the scheduler hasn't processed it.</p></div><span class="state-badge">DEFERRED</span></div>
+    <div class="timeline-step"><span class="timeline-number" aria-hidden="true">02</span><div><span class="diagram-kicker">Trigger, then scheduler</span><strong>Resumes the continuation</strong><p>The task advances through <code>SCHEDULED</code>.</p></div><span class="state-badge">QUEUED</span></div>
+    <div class="timeline-step"><span class="timeline-number" aria-hidden="true">03</span><div><span class="diagram-kicker">Scheduler</span><strong>Reads the older SUCCESS</strong><p><code>next_method</code> still identifies the continuation.</p></div><span class="state-badge">QUEUED</span></div>
+  </div>
+  <div class="timeline-verdict"><span class="diagram-kicker">The patched guard</span><strong>Ignore this event; keep the continuation queued.</strong></div>
+  <figcaption id="defer-figure-caption">The executor event belongs to the worker's defer exit. The current state belongs to the resumed task.</figcaption>
+</figure>
