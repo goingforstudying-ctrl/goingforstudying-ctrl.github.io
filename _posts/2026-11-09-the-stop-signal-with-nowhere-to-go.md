@@ -57,8 +57,8 @@ For the map, `LocalState` now takes the write lock (it writes, then marshals, so
 
 ## Proving it with the race detector
 
-The new `delegate_test.go` covers the shutdown path with a timeout-wrapped `Stop`, a double-`Stop`, and a `NotifyMsg` delivered after `Stop` to prove the channel survives. The interesting test is the stress one: four goroutines each hammering `LocalState`, `MergeRemoteState`, and `Stats` for 300 rounds, run under `go test -race`.
+The new `delegate_test.go` covers the shutdown path with a timeout-wrapped `Stop`, a double-`Stop`, and a `NotifyMsg` delivered after `Stop` to prove the channel survives. The interesting test is the stress one: twelve goroutines in all, with four repeatedly calling each of `LocalState`, `MergeRemoteState`, and `Stats` for 300 rounds under `go test -race`.
 
-The satisfying part was running that same test file against unmodified main: `Stop` deadlocks on the first test and the race detector lights up the state map on the stress test. Two sentences in the memberlist docs, and the whole delegate was living on borrowed time.
+The maintainer [verified all three defects with negative-control tests against pre-fix main](https://github.com/wind-c/comqtt/pull/193#pullrequestreview-5824057619). The committed test file calls the newly added `Stats()`, so it will not compile unchanged against that version. Reproducing the old failures needs tests adapted to the old API. Two sentences in the memberlist docs, and the whole delegate was living on borrowed time.
 
 My [comqtt PR #193](https://github.com/wind-c/comqtt/pull/193) merged on November 9, 2026. [Implementation and tests](https://github.com/wind-c/comqtt/pull/193/files). `go test -race ./cluster/discovery/mlist/` is green on the merge; the only failures in the wider suite (`cmd/cluster` leak checks and the postgres auth plugin) fail identically on unmodified main and want a real postgres, so I left them alone.
